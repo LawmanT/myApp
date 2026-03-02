@@ -211,29 +211,31 @@ def get_kick_viewers(username):
 # ==========================
 # VK Video Live функции
 # ==========================
-def get_vk_viewers(username):
+def get_vk_viewers(slug):
     try:
-        url = f"https://live.vkvideo.ru/api/web/channel/{username}"
+        url = f"https://live.vkvideo.ru/api/web/channel/{slug}"
         r = requests.get(url, timeout=5)
 
         if r.status_code != 200:
-            print("VK status:", r.status_code)
+            print(f"VK Live статус {r.status_code} для {slug}")
             return 0
 
         data = r.json()
 
         channel = data.get("channel")
         if not channel:
+            print(f"Канал {slug} не найден или оффлайн")
             return 0
 
         stream = channel.get("stream")
-        if not stream:
+        # Проверяем, что стрим идёт
+        if not stream or not stream.get("is_live", False):
             return 0
 
         return stream.get("viewers", 0)
 
     except Exception as e:
-        print("Ошибка VK Live:", e)
+        print(f"Ошибка VK Live для {slug}: {e}")
         return 0
 
 
@@ -290,7 +292,7 @@ def viewers():
     # VK Video Live
     # ======================
     elif platform == "vk":
-        viewers_count = get_vk_viewers(username)
+        viewers_count = get_vk_viewers(username)  # username = slug из URL
         cache[cache_key] = (now, viewers_count)
         return jsonify({"vk": viewers_count})
 
@@ -302,6 +304,7 @@ def viewers():
 # ==========================
 if __name__ == "__main__":
     start.run()
+
 
 
 

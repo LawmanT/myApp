@@ -209,6 +209,96 @@ def get_kick_viewers(username):
 
 
 # ==========================
+# VK Video Live функции
+# ==========================
+VK_APP_ID = os.getenv("VK_APP_ID")
+VK_PUBLIC_KEY = os.getenv("VK_PUBLIC_KEY")
+VK_SECRET_KEY = os.getenv("VK_SECRET_KEY")
+VK_ACCESS_TOKEN = None
+VK_TOKEN_EXPIRES = 0
+
+
+def get_vk_token():
+    global VK_ACCESS_TOKEN, VK_TOKEN_EXPIRES
+
+    if time.time() < VK_TOKEN_EXPIRES and VK_ACCESS_TOKEN:
+        return VK_ACCESS_TOKEN
+
+    try:
+        url = "https://oauth.vk.com/access_token"
+        params = {
+            "client_id": VK_APP_ID,
+            "client_secret": VK_SECRET_KEY,
+            "grant_type": "client_credentials",
+            "v": "5.199"
+        }
+
+        r = requests.get(url, params=params, timeout=5)
+        data = r.json()
+
+        VK_ACCESS_TOKEN = data.get("access_token")
+        expires_in = data.get("expires_in", 86400)
+        VK_TOKEN_EXPIRES = time.time() + expires_in - 60
+
+        return VK_ACCESS_TOKEN
+
+    except Exception as e:
+        print("Ошибка получения токена VK:", e)
+        return None
+
+
+def get_vk_viewers(username):
+    try:
+        token = get_vk_token()
+        if not token:
+            return 0
+
+        # Получаем информацию о пользователе/группе
+        resolve_url = f"https://api.vk.com/method/utils.resolveScreenName"
+        resolve_params = {
+            "screen_name": username,
+            "access_token": token,
+            "v": "5.199"
+        }
+
+        r = requests.get(resolve_url, params=resolve_params, timeout=5)
+        data = r.json().get("response", {})
+
+        if not data:
+            return 0
+
+        object_id = data.get("object_id")
+        object_type = data.get("type")
+
+        if object_type == "group":
+            owner_id = -object_id
+        else:
+            owner_id = object_id
+
+        # Получаем live-видео
+        live_url = "https://api.vk.com/method/video.getLive"
+        live_params = {
+            "owner_id": owner_id,
+            "access_token": token,
+            "v": "5.199"
+        }
+
+        r = requests.get(live_url, params=live_params, timeout=5)
+        live_data = r.json().get("response", {})
+
+        if not live_data:
+            return 0
+
+        return live_data.get("viewers", 0)
+
+    except Exception as e:
+        print("Ошибка VK Live:", e)
+        return 0
+
+
+
+
+# ==========================
 # Универсальный API маршрут
 # ==========================
 @start.route("/viewers")
@@ -260,10 +350,19 @@ def viewers():
     else:
         return jsonify({"error": "unknown platform"})
 
+    # ======================
+    # VK Video Live
+    # ======================
+elif platform == "vk":
+    viewers_count = get_vk_viewers(username)
+    cache[cache_key] = (now, viewers_count)
+    return jsonify({"vk": viewers_count})
+
 
 # ==========================
 # Запуск сервера
 # ==========================
 if __name__ == "__main__":
     start.run()
+
 

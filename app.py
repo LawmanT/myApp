@@ -296,8 +296,6 @@ def get_vk_viewers(username):
         return 0
 
 
-
-
 # ==========================
 # Универсальный API маршрут
 # ==========================
@@ -347,22 +345,22 @@ def viewers():
         cache[cache_key] = (now, viewers_count)
         return jsonify({"kick": viewers_count})
 
-    else:
-        return jsonify({"error": "unknown platform"})
-
     # ======================
     # VK Video Live
     # ======================
-elif platform == "vk":
-    viewers_count = get_vk_viewers(username)
-    cache[cache_key] = (now, viewers_count)
-    return jsonify({"vk": viewers_count})
+    elif platform == "vk":
+        viewers_count = get_vk_viewers(username)
+        cache[cache_key] = (now, viewers_count)
+        return jsonify({"vk": viewers_count})
 
+    else:
+        return jsonify({"error": "unknown platform"})
 
 # ==========================
 # Запуск сервера
 # ==========================
 if __name__ == "__main__":
     start.run()
+
 
 
